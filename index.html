@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galerie Photos</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Style pour le focus visible (navigation télécommande) */
+        button:focus, input:focus, label:focus {
+            outline: 4px solid #FFD700 !important;
+            outline-offset: 4px;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+        
+        .focusable:focus {
+            outline: 4px solid #FFD700 !important;
+            outline-offset: 4px;
+            transform: scale(1.05);
+            transition: all 0.2s;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        function PhotoGallerySystem() {
+          const [page, setPage] = useState('home');
+          const [profiles, setProfiles] = useState([]);
+          const [currentProfile, setCurrentProfile] = useState({
+            image: '',
+            prenom: '',
+            age: ''
+          });
+          const fileInputRef = useRef(null);
+
+          useEffect(() => {
+            loadProfiles();
+          }, []);
+
+          const loadProfiles = () => {
+            try {
+              const saved = localStorage.getItem('profiles');
+              if (saved) {
+                setProfiles(JSON.parse(saved));
+              }
+            } catch (error) {
+              console.log('Erreur chargement');
+              setProfiles([]);
+            }
+          };
+
+          const saveToStorage = (newProfiles) => {
+            try {
+              localStorage.setItem('profiles', JSON.stringify(newProfiles));
+            } catch (error) {
+              console.error('Erreur sauvegarde');
+            }
+          };
+
+          const handleImageUpload = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                setCurrentProfile(prev => ({ ...prev, image: reader.result }));
+              };
+              reader.readAsDataURL(file);
+            }
+          };
+
+          const saveProfile = () => {
+            if (!currentProfile.image || !currentProfile.prenom || !currentProfile.age) {
+              alert('Veuillez remplir tous les champs');
+              return;
+            }
+
+            const profileData = {
+              ...currentProfile,
+              id: Date.now(),
+              timestamp: Date.now()
+            };
+
+            const newProfiles = [...profiles, profileData];
+            setProfiles(newProfiles);
+            saveToStorage(newProfiles);
+            
+            alert('Profil ajouté avec succès !');
+            setPage('gallery');
+            setCurrentProfile({ image: '', prenom: '', age: '' });
+          };
+
+          const deleteProfile = (profileId) => {
+            if (confirm('Voulez-vous vraiment supprimer ce profil ?')) {
+              const newProfiles = profiles.filter(p => p.id !== profileId);
+              setProfiles(newProfiles);
+              saveToStorage(newProfiles);
+            }
+          };
+
+          // Navigation clavier / télécommande
+          useEffect(() => {
+            const handleKeyDown = (e) => {
+              // Touche Retour / Backspace / Escape
+              if (e.key === 'Escape' || e.key === 'Backspace') {
+                e.preventDefault();
+                if (page === 'create' || page === 'gallery') {
+                  setPage('home');
+                }
+              }
+              
+              // Touche Enter sur un input file
+              if (e.key === 'Enter' && e.target.tagName === 'LABEL') {
+                e.preventDefault();
+                const input = e.target.querySelector('input[type="file"]');
+                if (input) input.click();
+              }
+            };
+
+            window.addEventListener('keydown', handleKeyDown);
+            return () => window.removeEventListener('keydown', handleKeyDown);
+          }, [page]);
+
+          if (page === 'home') {
+            return (
+              <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl shadow-2xl p-12 max-w-md w-full text-center">
+                  <div className="text-8xl mb-6">📸</div>
+                  <h1 className="text-4xl font-bold text-gray-800 mb-4">
+                    Galerie Photos
+                  </h1>
+                  <p className="text-gray-600 mb-8">
+                    Créez des profils et partagez vos photos
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <button
+                      autoFocus
+                      onClick={() => setPage('create')}
+                      className="w-full bg-purple-600 text-white py-5 px-6 rounded-xl font-semibold hover:bg-purple-700 transition shadow-lg text-xl"
+                    >
+                      ➕ Créer un Profil
+                    </button>
+                    
+                    <button
+                      onClick={() => setPage('gallery')}
+                      className="w-full bg-blue-600 text-white py-5 px-6 rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg text-xl"
+                    >
+                      🖼️ Voir la Galerie ({profiles.length})
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          if (page === 'create') {
+            return (
+              <div className="min-h-screen bg-gradient-to-br from-blue-500 to-teal-500 p-4">
+                <div className="max-w-2xl mx-auto">
+                  <button
+                    onClick={() => {
+                      setPage('home');
+                      setCurrentProfile({ image: '', prenom: '', age: '' });
+                    }}
+                    className="mb-4 flex items-center text-white hover:text-blue-100 text-xl px-4 py-2 rounded-lg hover:bg-white/20"
+                  >
+                    ← Retour
+                  </button>
+
+                  <div className="bg-white rounded-2xl shadow-xl p-8">
+                    <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">
+                      Créer un Profil
+                    </h1>
+
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Photo de profil
+                        </label>
+                        <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-blue-500 transition cursor-pointer">
+                          {currentProfile.image ? (
+                            <div className="space-y-3">
+                              <img 
+                                src={currentProfile.image} 
+                                alt="Preview" 
+                                className="w-32 h-32 object-cover rounded-full mx-auto border-4 border-blue-200"
+                              />
+                              <label 
+                                tabIndex="0"
+                                className="cursor-pointer inline-block bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 text-lg"
+                              >
+                                Changer l'image
+                                <input 
+                                  ref={fileInputRef}
+                                  type="file" 
+                                  accept="image/*" 
+                                  onChange={handleImageUpload}
+                                  className="hidden"
+                                />
+                              </label>
+                            </div>
+                          ) : (
+                            <label 
+                              tabIndex="0"
+                              className="cursor-pointer block focusable p-4 rounded-xl"
+                            >
+                              <div className="text-6xl mb-3">📤</div>
+                              <span className="text-gray-600 text-lg">Cliquez pour uploader une image</span>
+                              <input 
+                                ref={fileInputRef}
+                                type="file" 
+                                accept="image/*" 
+                                onChange={handleImageUpload}
+                                className="hidden"
+                              />
+                            </label>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Prénom
+                        </label>
+                        <input
+                          type="text"
+                          value={currentProfile.prenom}
+                          onChange={(e) => setCurrentProfile(prev => ({ ...prev, prenom: e.target.value }))}
+                          placeholder="Entrez le prénom"
+                          className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none text-lg"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Âge
+                        </label>
+                        <input
+                          type="number"
+                          value={currentProfile.age}
+                          onChange={(e) => setCurrentProfile(prev => ({ ...prev, age: e.target.value }))}
+                          placeholder="Entrez l'âge"
+                          className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none text-lg"
+                        />
+                      </div>
+
+                      <button
+                        onClick={saveProfile}
+                        className="w-full bg-blue-600 text-white py-5 rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg text-xl"
+                      >
+                        💾 Enregistrer le Profil
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          if (page === 'gallery') {
+            return (
+              <div className="min-h-screen bg-gradient-to-br from-pink-500 to-purple-600 p-4">
+                <div className="max-w-6xl mx-auto">
+                  <button
+                    autoFocus
+                    onClick={() => setPage('home')}
+                    className="mb-4 flex items-center text-white hover:text-pink-100 text-xl px-4 py-2 rounded-lg hover:bg-white/20"
+                  >
+                    ← Retour
+                  </button>
+
+                  <div className="bg-white rounded-2xl shadow-xl p-8">
+                    <div className="flex items-center justify-center mb-8">
+                      <h1 className="text-4xl font-bold text-gray-800">
+                        🖼️ Galerie de Profils
+                      </h1>
+                    </div>
+
+                    <div className="bg-gradient-to-r from-yellow-100 to-orange-100 rounded-2xl p-6 mb-8 text-center border-4 border-yellow-300">
+                      <h2 className="text-3xl font-bold text-gray-800 mb-4">
+                        🤪 Mets ta grimace !
+                      </h2>
+                      <button
+                        onClick={() => setPage('create')}
+                        className="bg-orange-500 text-white px-8 py-5 rounded-xl font-bold hover:bg-orange-600 transition shadow-lg text-xl"
+                      >
+                        📸 Ajouter ta photo
+                      </button>
+                    </div>
+
+                    {profiles.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="text-8xl mb-4">👤</div>
+                        <p className="text-gray-500 text-xl mb-4">Aucun profil pour le moment</p>
+                        <button
+                          onClick={() => setPage('create')}
+                          className="bg-purple-600 text-white px-8 py-4 rounded-xl hover:bg-purple-700 font-semibold text-lg"
+                        >
+                          Créer le premier profil
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {profiles.map((profile, index) => (
+                          <div 
+                            key={profile.id || index}
+                            className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition transform hover:scale-105 focusable"
+                            tabIndex="0"
+                          >
+                            <div className="relative">
+                              <button
+                                onClick={() => deleteProfile(profile.id)}
+                                className="absolute top-4 right-4 bg-red-500 text-white p-3 rounded-full hover:bg-red-600 shadow-lg z-10 text-xl"
+                              >
+                                🗑️
+                              </button>
+                              
+                              <div className="w-full h-80 overflow-hidden bg-gray-100">
+                                <img 
+                                  src={profile.image} 
+                                  alt={profile.prenom} 
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              
+                              <div className="p-6 bg-gradient-to-br from-purple-50 to-pink-50">
+                                <h3 className="text-2xl font-bold text-gray-800 mb-2 text-center">
+                                  {profile.prenom}
+                                </h3>
+                                <div className="flex items-center justify-center text-gray-600">
+                                  <span className="text-xl">👤 {profile.age} ans</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<PhotoGallerySystem />);
+    </script>
+</body>
+</html>
